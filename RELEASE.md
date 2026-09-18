@@ -50,7 +50,7 @@ The current upstream/ad-hoc app cannot bootstrap Sparkle by itself: install this
 
 A release that fails tests/signing/notarization never advances the feed. Signing secrets are removed even when a job fails. Release runs are serialized and are not canceled halfway through.
 
-A published tag is immutable: bump the version for a new build instead of overwriting a released DMG. Assets and the appcast are uploaded to a draft first, then made public together. A failed draft can be retried. If post-publication verification fails, inspect the public assets and rerun `python3 Scripts/verify-published.py <tag>`; do not rebuild or overwrite a published release.
+A published tag is immutable: bump the version for a new build instead of overwriting a released DMG. Assets and the appcast are uploaded to a draft first, then made public together. A failed draft can be retried. Verification retries temporary HTTP failures and a stale latest-release feed while GitHub propagates publication. If post-publication verification still fails, inspect the public assets and rerun `python3 Scripts/verify-published.py <tag>`; do not rebuild or overwrite a published release.
 
 To recover from a bad update, publish the corrected app with a higher internal build number and a new marketing version. Do not lower the version or overwrite an old archive: already-installed clients will not reliably downgrade.
 
