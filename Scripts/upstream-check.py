@@ -117,9 +117,9 @@ def report(snapshot, invariants, commentary, ok, commits):
 <!-- analysis-status:{'complete' if ok else 'failed'} -->
 ## Upstream change report
 
-Upstream: [`{snapshot['upstream'][:12]}`](https://github.com/{UPSTREAM}/commit/{snapshot['upstream']})  
-Fork assessed: [`{snapshot['fork'][:12]}`](https://github.com/{REPOSITORY}/commit/{snapshot['fork']})  
-Last common upstream ancestor: `{snapshot['base']}`  
+Upstream: [`{snapshot['upstream'][:12]}`](https://github.com/{UPSTREAM}/commit/{snapshot['upstream']})
+Fork assessed: [`{snapshot['fork'][:12]}`](https://github.com/{REPOSITORY}/commit/{snapshot['fork']})
+Last common upstream ancestor: `{snapshot['base']}`
 Incoming commits: **{len(snapshot['incoming'])}**
 
 [Review upstream diff](https://github.com/{UPSTREAM}/compare/{snapshot['base']}...{snapshot['upstream']})
