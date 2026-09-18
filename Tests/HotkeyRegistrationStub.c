@@ -9,7 +9,7 @@ static unsigned registrationCount;
 OSStatus RegisterEventHotKey(UInt32 key, UInt32 modifiers, EventHotKeyID id,
                             EventTargetRef target, OptionBits options, EventHotKeyRef *out) {
     assert(key == kVK_LeftArrow || key == kVK_RightArrow);
-    assert(modifiers == (controlKey | optionKey));
+    assert(modifiers == controlKey);
     assert(id.id == 1 || id.id == 2);
     assert(target != NULL && options == 0);
     *out = (EventHotKeyRef)malloc(1);

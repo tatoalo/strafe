@@ -1,0 +1,37 @@
+name: Upstream impact report
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Reanalyze the current upstream/fork pair
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  issues: write
+concurrency:
+  group: upstream-impact-report
+  cancel-in-progress: false
+jobs:
+  analyze:
+    if: github.repository == 'tatoalo/strafe'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Analyze upstream changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LLM_PROVIDER_API_KEY: ${{ secrets.LLM_PROVIDER_API_KEY }}
+          LLM_PROVIDER_MODEL: ${{ secrets.LLM_PROVIDER_MODEL }}
+          LLM_PROVIDER_URL: ${{ secrets.LLM_PROVIDER_URL }}
+          FORCE: ${{ inputs.force == true }}
+        run: |
+          args=()
+          if [[ "$FORCE" == true ]]; then args+=(--force); fi
+          python3 Scripts/upstream-check.py "${args[@]}"

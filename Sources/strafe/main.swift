@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 
 // MARK: - Entry point
 //
@@ -23,7 +24,7 @@ func runCLI(_ args: [String], engine: GestureSwitchEngine) -> Int32 {
     switch args.first {
     case "switch":
         guard args.count >= 2 else {
-            FileHandle.standardError.write(Data("usage: strafe switch left|right\n".utf8))
+            FileHandle.standardError.write(Data("usage: strafe-tatoalo switch left|right\n".utf8))
             return 2
         }
         let direction: SwitchDirection
@@ -105,14 +106,14 @@ func runCLI(_ args: [String], engine: GestureSwitchEngine) -> Int32 {
 
     default:
         FileHandle.standardError.write(Data("""
-        strafe — near-instant macOS Spaces switching
+        strafe-tatoalo — near-instant macOS Spaces switching
 
         usage:
-          strafe                      start the menu-bar app
-          strafe switch left|right    switch space once and exit
-          strafe status               print accessibility / tap status
-          strafe speed [preset]       show or set the swipe transition speed
-          strafe hotkeys [on|off]     show or set the ctrl+opt+arrow hotkeys
+          strafe-tatoalo                      start the menu-bar app
+          strafe-tatoalo switch left|right    switch space once and exit
+          strafe-tatoalo status               print accessibility / tap status
+          strafe-tatoalo speed [preset]       show or set the swipe transition speed
+          strafe-tatoalo hotkeys [on|off]     show or set the ctrl+arrow hotkeys
 
         """.utf8))
         return 2
@@ -139,6 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var interceptor: SwipeInterceptor!
     private var hotkeys: HotkeyManager!
     private var statusItem: StatusItemController!
+    private var updaterController: SPUStandardUpdaterController!
 
     init(engine: GestureSwitchEngine) {
         self.engine = engine
@@ -154,7 +156,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeys = HotkeyManager(engine: engine)
         hotkeys.start()
 
-        statusItem = StatusItemController(interceptor: interceptor, engine: engine, hotkeys: hotkeys)
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: Bundle.main.bundleIdentifier == Preferences.domain,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
+        statusItem = StatusItemController(
+            interceptor: interceptor, engine: engine, hotkeys: hotkeys, updater: updaterController
+        )
 
         // SPEC §2.4 / §5: reset the prediction dictionary to live CGS data
         // whenever the OS reports a real space change, so rapid repeated swipes

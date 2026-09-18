@@ -2,15 +2,14 @@ import Carbon.HIToolbox
 import Foundation
 
 /// Registers global hotkeys via Carbon's `RegisterEventHotKey` and routes them
-/// to the switch engine. Defaults: ctrl+opt+left / ctrl+opt+right.
+/// to the switch engine. Defaults: ctrl+left / ctrl+right.
 ///
 /// This is a working implementation (not stubbed). Carbon hotkeys are still the
 /// simplest reliable way to grab a system-wide key combo without a full event
 /// tap, and they do not require Accessibility permission.
 ///
-/// **Toggleable.** Ctrl+Option+Left/Right is also a common chord for
-/// third-party window-tiling tools (and macOS's own tiling shortcuts), and
-/// Carbon's `RegisterEventHotKey` grabs it system-wide ahead of them. Since
+/// **Toggleable.** Ctrl+Left/Right overlaps macOS's native Space shortcuts,
+/// which should be disabled in Mission Control keyboard shortcuts. Since
 /// this is a separate mechanism from the gesture tap (SPEC §2), it can be
 /// switched off independently via `HotkeyManager.enabled` / the menu-bar
 /// "Space-switch hotkeys" item / `strafe hotkeys off` — leaving the swipe
@@ -25,7 +24,7 @@ final class HotkeyManager {
     private var settingsObserver: (any NSObjectProtocol)?
 
     nonisolated private static let settingsChanged = Notification.Name(
-        "com.rileycx.strafe.hotkeysChanged"
+        "com.tatoalo.strafe.hotkeysChanged"
     )
 
     // Distinct ids so the handler knows which combo fired.
@@ -66,12 +65,12 @@ final class HotkeyManager {
     func register() {
         installHandlerIfNeeded()
 
-        let ctrlOpt = UInt32(controlKey | optionKey)
+        let modifiers = UInt32(controlKey)
         if leftHotKey == nil {
-            leftHotKey = registerHotKey(keyCode: UInt32(kVK_LeftArrow), id: Self.leftID, modifiers: ctrlOpt)
+            leftHotKey = registerHotKey(keyCode: UInt32(kVK_LeftArrow), id: Self.leftID, modifiers: modifiers)
         }
         if rightHotKey == nil {
-            rightHotKey = registerHotKey(keyCode: UInt32(kVK_RightArrow), id: Self.rightID, modifiers: ctrlOpt)
+            rightHotKey = registerHotKey(keyCode: UInt32(kVK_RightArrow), id: Self.rightID, modifiers: modifiers)
         }
     }
 

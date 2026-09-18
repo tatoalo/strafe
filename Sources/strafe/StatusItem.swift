@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 
 /// The menu-bar controller. Owns the `NSStatusItem` and wires its menu to the
 /// interceptor / permission state. LSUIElement is set in the bundled
@@ -9,6 +10,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let interceptor: SwipeInterceptor
     private let engine: GestureSwitchEngine?
     private let hotkeys: HotkeyManager?
+    private let updater: SPUStandardUpdaterController?
+    private let automaticUpdatesItem = NSMenuItem(
+        title: "Automatically check for updates", action: #selector(toggleAutomaticUpdates), keyEquivalent: ""
+    )
 
     private let toggleItem = NSMenuItem(
         title: "Enable", action: #selector(toggleEnabled), keyEquivalent: ""
@@ -18,7 +23,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     )
     private var speedItems: [NSMenuItem] = []
     private let hotkeysItem = NSMenuItem(
-        title: "Space-switch hotkeys (⌃⌥←/→)", action: #selector(toggleHotkeys), keyEquivalent: ""
+        title: "Space-switch hotkeys (⌃←/→)", action: #selector(toggleHotkeys), keyEquivalent: ""
     )
     private let accessibilityItem = NSMenuItem(
         title: "Accessibility granted: —", action: nil, keyEquivalent: ""
@@ -32,10 +37,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
     }
 
-    init(interceptor: SwipeInterceptor, engine: GestureSwitchEngine? = nil, hotkeys: HotkeyManager? = nil) {
+    init(
+        interceptor: SwipeInterceptor, engine: GestureSwitchEngine? = nil,
+        hotkeys: HotkeyManager? = nil, updater: SPUStandardUpdaterController? = nil
+    ) {
         self.interceptor = interceptor
         self.engine = engine
         self.hotkeys = hotkeys
+        self.updater = updater
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -45,7 +54,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "rectangle.on.rectangle",
-                accessibilityDescription: "strafe"
+                accessibilityDescription: "strafe-tatoalo"
             )
             button.image?.isTemplate = true
         }
@@ -66,19 +75,19 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
         menu.addItem(accessibilityItem)
 
-        // Update story, stated rather than performed. strafe cannot reach the
-        // internet, so it cannot check for a new version; instead of a
-        // check-for-updates button that would need that ability, the menu just
-        // says what's running and where newer builds live. Both items are inert
-        // text — nothing is opened, copied, or fetched. Keeping them inert is
-        // what lets the greps in SECURITY.md keep returning zero hits, so
-        // resist the urge to make this line clickable.
         menu.addItem(.separator())
-        for line in ["strafe \(Self.version)",
-                     "No auto-update — github.com/rileycx/strafe"] {
-            let item = NSMenuItem(title: line, action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            menu.addItem(item)
+        let versionItem = NSMenuItem(title: "strafe-tatoalo \(Self.version)", action: nil, keyEquivalent: "")
+        versionItem.isEnabled = false
+        menu.addItem(versionItem)
+        if let updater {
+            let check = NSMenuItem(
+                title: "Check for Updates…",
+                action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: ""
+            )
+            check.target = updater
+            menu.addItem(check)
+            automaticUpdatesItem.target = self
+            menu.addItem(automaticUpdatesItem)
         }
 
         menu.addItem(.separator())
@@ -149,7 +158,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         refresh()
     }
 
-    /// Toggle the Ctrl+Option+Left/Right global hotkeys, independent of the
+    /// Toggle the Ctrl+Left/Right global hotkeys, independent of the
     /// gesture tap (`toggleEnabled`). This is the mechanism that can conflict
     /// with third-party window-tiling shortcuts bound to the same chord.
     @objc private func toggleHotkeys() {
@@ -160,15 +169,21 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         refresh()
     }
 
+    @objc private func toggleAutomaticUpdates() {
+        guard let updater else { return }
+        updater.updater.automaticallyChecksForUpdates.toggle()
+        refresh()
+    }
+
     // AppKit saves visibility; initialization resets it on the next launch.
     @objc private func hideFromMenuBar() {
         let alert = NSAlert()
-        alert.messageText = "Hide strafe from the menu bar?"
+        alert.messageText = "Hide strafe-tatoalo from the menu bar?"
         alert.informativeText = """
-            strafe stays running in the background. Swipes and keyboard \
+            strafe-tatoalo stays running in the background. Swipes and keyboard \
             shortcuts keep working.
 
-            To bring the icon back or to quit, open strafe again from \
+            To bring the icon back or to quit, open strafe-tatoalo again from \
             Applications or Spotlight.
             """
         alert.addButton(withTitle: "Hide")
@@ -196,5 +211,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let granted = Permissions.isAccessibilityGranted
         accessibilityItem.title = "Accessibility granted: \(granted ? "yes" : "no")"
         hotkeysItem.state = HotkeyManager.enabled ? .on : .off
+        automaticUpdatesItem.state = updater?.updater.automaticallyChecksForUpdates == true ? .on : .off
     }
 }

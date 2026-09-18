@@ -12,8 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-APP_NAME="strafe"
-BUNDLE_ID="com.rileycx.strafe"
+APP_NAME="strafe-tatoalo"
+BUNDLE_ID="com.tatoalo.strafe"
 SRC="$ROOT_DIR/build/$APP_NAME.app"
 DEST="/Applications/$APP_NAME.app"
 

@@ -1,37 +1,40 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
-# Least privilege: CI only needs to read the repo.
+  workflow_dispatch:
 permissions:
   contents: read
-
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
-      # actions/checkout v4.2.2 — pinned by full commit SHA.
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Build (strict concurrency, warnings as errors)
-        run: swift build -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
-
-      - name: Test gesture payload serialization (no input events posted)
-        run: bash Tests/run.sh
-
-      - name: Test Space boundaries and gesture completion
-        run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
-
-      - name: Test hotkey settings across processes (no shortcuts captured)
-        run: bash Tests/hotkeys.sh
-
-      - name: Bundle strafe.app (ad-hoc signed in CI)
-        run: ./Scripts/bundle.sh
-
-      - name: Verify bundle assembles and ad-hoc signs
-        run: codesign --verify --verbose=2 build/strafe.app
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build and test
+        run: |
+          swift --version
+          swift build -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+          swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+          bash Tests/run.sh
+          bash Tests/hotkeys.sh
+          python3 -m unittest discover -s Tests -p 'test_*.py'
+      - name: Bundle and verify
+        run: |
+          ./Scripts/bundle.sh
+          codesign --verify --deep --strict build/strafe-tatoalo.app
+          ditto -c -k --keepParent build/strafe-tatoalo.app build/strafe-tatoalo-dev.zip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: strafe-tatoalo-dev-arm64
+          path: build/strafe-tatoalo-dev.zip
+          retention-days: 14
