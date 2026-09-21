@@ -276,7 +276,7 @@ int64_t strafe_event_source_pid(CGEventRef event) {
 }
 
 bool strafe_event_moves_right(double progressOrVelocity) {
-    return strafe_uses_iohid_payload() ? progressOrVelocity < 0 : progressOrVelocity > 0;
+    return progressOrVelocity > 0;
 }
 
 void strafe_clear_swipe_motion(CGEventRef event) {
