@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <path id="tile" d="M334 100H690C765 100 807 100 845 121C884 142 910 181 919 227C924 253 924 289 924 334V690C924 765 924 807 903 845C882 884 843 910 797 919C771 924 735 924 690 924H334C259 924 217 924 179 903C140 882 114 843 105 797C100 771 100 735 100 690V334C100 259 100 217 121 179C142 140 181 114 227 105C253 100 289 100 334 100Z"/>
+    <path id="upper" d="M433.2371 310H733.7519C751.2476 310 758.4517 328 745.0727 342L644.215 443C627.7484 459 609.2235 466 586.582 466H295.3296C271.6589 466 264.4548 447 280.9214 430L393.0999 326C404.4206 315 418.8289 310 433.2371 310Z"/>
+    <path id="lower" d="M303.612 522H591.4163C615.2345 522 632.1058 532 647.9847 550L742.2654 653C760.1291 673 752.1897 692 728.3714 692H464.3854C440.5671 692 422.7034 684 406.8246 667L281.7786 556C261.93 537 273.8392 522 303.612 522Z"/>
+    <clipPath id="clip"><use href="#tile"/></clipPath>
+    <linearGradient id="blue" x1="235" y1="102" x2="708" y2="924" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#12BCFA"/>
+      <stop offset=".36" stop-color="#078BFF"/>
+      <stop offset=".73" stop-color="#0863F7"/>
+      <stop offset="1" stop-color="#1243E6"/>
+    </linearGradient>
+    <radialGradient id="light" cx="220" cy="117" r="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#82E8FF" stop-opacity=".29"/>
+      <stop offset=".63" stop-color="#29C9FF" stop-opacity=".04"/>
+      <stop offset="1" stop-color="#29C9FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="235" y1="100" x2="747" y2="924" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BBF3FF" stop-opacity=".66"/>
+      <stop offset=".34" stop-color="#57CBFF" stop-opacity=".15"/>
+      <stop offset=".72" stop-color="#3E85F9" stop-opacity=".03"/>
+      <stop offset="1" stop-color="#0730A8" stop-opacity=".48"/>
+    </linearGradient>
+    <linearGradient id="pearl" x1="454" y1="309" x2="650" y2="695" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset=".43" stop-color="#F7FBFF"/>
+      <stop offset="1" stop-color="#DCEAFF"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="500" y1="310" x2="500" y2="692" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".92"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity=".24"/>
+    </linearGradient>
+    <filter id="relief" x="-5%" y="-8%" width="110%" height="116%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="1.6" flood-color="#0036AE" flood-opacity=".12"/>
+    </filter>
+  </defs>
+  <use href="#tile" fill="url(#blue)"/>
+  <g clip-path="url(#clip)">
+    <use href="#tile" fill="url(#light)"/>
+    <use href="#tile" fill="none" stroke="url(#rim)" stroke-width="5"/>
+  </g>
+  <g fill="url(#pearl)" stroke="url(#edge)" stroke-width="1" filter="url(#relief)">
+    <use href="#upper"/>
+    <use href="#lower"/>
+  </g>
+</svg>
