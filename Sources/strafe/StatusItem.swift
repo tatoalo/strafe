@@ -52,11 +52,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         statusItem.isVisible = true
 
         if let button = statusItem.button {
-            button.image = NSImage(
-                systemSymbolName: "rectangle.on.rectangle",
-                accessibilityDescription: "strafe-tatoalo"
-            )
+            button.image = Bundle.main.image(forResource: "StrafeMenuBarTemplate")
+                ?? NSImage(
+                    systemSymbolName: "rectangle.on.rectangle",
+                    accessibilityDescription: "strafe-tatoalo"
+                )
+            button.image?.size = NSSize(width: 18, height: 18)
             button.image?.isTemplate = true
+            button.setAccessibilityLabel("strafe-tatoalo")
         }
 
         let menu = NSMenu()

@@ -14,6 +14,7 @@ cp "$BIN_DIR/$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
 strip -rSTx "$APP/Contents/MacOS/$APP_NAME"
 ditto "$FRAMEWORK" "$APP/Contents/Frameworks/Sparkle.framework"
 cp LICENSE "$APP/Contents/Resources/LICENSE"
+cp Resources/Branding/Strafe.icns Resources/Branding/StrafeMenuBarTemplate.pdf "$APP/Contents/Resources/"
 BUILD_NUMBER="${BUILD_NUMBER:-$(git rev-list --count HEAD)}" python3 - <<'PY'
 import os,pathlib,plistlib,re
 version=pathlib.Path('VERSION').read_text().strip()
@@ -24,6 +25,7 @@ info={
  'CFBundleName':'strafe-tatoalo','CFBundleDisplayName':'strafe-tatoalo',
  'CFBundleExecutable':'strafe-tatoalo','CFBundleIdentifier':'com.tatoalo.strafe',
  'CFBundlePackageType':'APPL','CFBundleShortVersionString':version,'CFBundleVersion':build,
+ 'CFBundleIconFile':'Strafe.icns',
  'LSMinimumSystemVersion':'15.0','LSUIElement':True,
  'NSHumanReadableCopyright':'Copyright © 2026 Riley Hennigh and strafe-tatoalo contributors. MIT.',
  'SUFeedURL':'https://github.com/tatoalo/strafe/releases/latest/download/appcast.xml',

@@ -1,3 +1,5 @@
+<img src="Resources/Branding/Strafe.iconset/icon_512x512.png" alt="Strafe app icon" width="128" height="128">
+
 # strafe-tatoalo
 
 A fork of [rileycx/strafe](https://github.com/rileycx/strafe) with **Control–Arrow Space switching**, signed macOS downloads, and in-app updates.
