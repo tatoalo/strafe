@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import Sparkle
 
 /// The menu-bar controller. Owns the `NSStatusItem` and wires its menu to the
@@ -11,6 +12,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let engine: GestureSwitchEngine?
     private let hotkeys: HotkeyManager?
     private let updater: SPUStandardUpdaterController?
+    private let launchAtStartup = LaunchAtStartup()
+    private let launchAtStartupItem = NSMenuItem(
+        title: "Launch at startup", action: #selector(toggleLaunchAtStartup), keyEquivalent: ""
+    )
+    private let approveLaunchAtStartupItem = NSMenuItem(
+        title: "Allow launch in System Settings…", action: #selector(openLoginItemsSettings), keyEquivalent: ""
+    )
     private let automaticUpdatesItem = NSMenuItem(
         title: "Automatically check for updates", action: #selector(toggleAutomaticUpdates), keyEquivalent: ""
     )
@@ -77,6 +85,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(hotkeysItem)
         }
         menu.addItem(accessibilityItem)
+
+        if Bundle.main.bundleIdentifier == Preferences.domain {
+            menu.addItem(.separator())
+            launchAtStartupItem.target = self
+            menu.addItem(launchAtStartupItem)
+            approveLaunchAtStartupItem.target = self
+            menu.addItem(approveLaunchAtStartupItem)
+        }
 
         menu.addItem(.separator())
         let versionItem = NSMenuItem(title: "strafe-tatoalo \(Self.version)", action: nil, keyEquivalent: "")
@@ -178,6 +194,23 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         refresh()
     }
 
+    @objc private func toggleLaunchAtStartup() {
+        do {
+            try launchAtStartup.toggle()
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Couldn’t change launch at startup"
+            alert.informativeText = error.localizedDescription
+            NSApp.activate()
+            alert.runModal()
+        }
+        refresh()
+    }
+
+    @objc private func openLoginItemsSettings() {
+        SMAppService.openSystemSettingsLoginItems()
+    }
+
     // AppKit saves visibility; initialization resets it on the next launch.
     @objc private func hideFromMenuBar() {
         let alert = NSAlert()
@@ -215,5 +248,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         accessibilityItem.title = "Accessibility granted: \(granted ? "yes" : "no")"
         hotkeysItem.state = HotkeyManager.enabled ? .on : .off
         automaticUpdatesItem.state = updater?.updater.automaticallyChecksForUpdates == true ? .on : .off
+        let launchStatus = launchAtStartup.status
+        launchAtStartupItem.state = switch launchStatus {
+        case .enabled: .on
+        case .requiresApproval: .mixed
+        default: .off
+        }
+        launchAtStartupItem.title = launchStatus == .requiresApproval
+            ? "Launch at startup (approval required)" : "Launch at startup"
+        approveLaunchAtStartupItem.isHidden = launchStatus != .requiresApproval
     }
 }
