@@ -21,6 +21,7 @@ Requires Apple Silicon and macOS 15 or newer. Releases are Developer ID signed, 
 - **BetterMouse:** bind horizontal mouse gestures to Control–Left/Right. Synthetic three-finger swipe actions are not intercepted.
 - **Trackpad:** native horizontal Space swipes are accelerated when Accessibility is granted and interception is enabled.
 - **Menu bar:** toggle gesture interception or hotkeys independently, choose Instant/Quick/Smooth transitions, and hide/show the menu icon.
+- **Launch at startup:** opt in to opening strafe-tatoalo automatically when you log in. The menu reflects macOS Login Items and links to System Settings if approval is needed.
 - **Check for Updates…:** view release notes, install a signed update, and relaunch.
 - **Automatically check for updates:** enables periodic background checks. Installing an update remains your choice; automatic installation is disabled by default.
 
