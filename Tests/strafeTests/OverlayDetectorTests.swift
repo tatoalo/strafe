@@ -11,6 +11,35 @@ final class OverlayDetectorTests: XCTestCase {
         }
     }
 
+    func testAppSwitcherRequiresItsExactSubrole() {
+        let list = Element(role: .value("AXList"), subrole: .value("AXProcessSwitcherList"))
+        let wm = Element(children: nil)
+        let dock = Element(children: [Element(role: .value("AXList")), list])
+        XCTAssertEqual(OverlaySnapshot.appSwitcher(connections(wm, dock)), .active)
+        XCTAssertEqual(wm.calls, 0)
+        XCTAssertEqual(list.childrenCalls, 0)
+        for subrole in [OverlayAttribute.absent, .value("other-switcher")] {
+            let ordinary = Element(children: [Element(role: .value("AXList"), subrole: subrole)])
+            XCTAssertEqual(OverlaySnapshot.appSwitcher(connections(wm, ordinary)), .inactive)
+        }
+        let wrongRole = Element(children: [Element(role: .value("AXGroup"), subrole: .value("AXProcessSwitcherList"))])
+        XCTAssertEqual(OverlaySnapshot.appSwitcher(connections(wm, wrongRole)), .unknown)
+    }
+
+    func testAppSwitcherUnavailableOrLateReadsStayNative() {
+        XCTAssertEqual(OverlaySnapshot.appSwitcher([]), .unknown)
+        let wm = Element(children: [])
+        for dock in [Element(children: nil), Element(children: []), Element(children: [Element(subrole: .unavailable)])] {
+            XCTAssertEqual(OverlaySnapshot.appSwitcher(connections(wm, dock)), .unknown)
+        }
+        let clock = Clock()
+        clock.cost = 0.002
+        let list = Element(role: .value("AXList"), subrole: .value("AXProcessSwitcherList"), clock: clock)
+        let dock = Element(children: [list], clock: clock)
+        XCTAssertEqual(OverlaySnapshot.appSwitcher(connections(wm, dock), now: { clock.time }), .unknown)
+        XCTAssertEqual(clock.timeouts.count, 3)
+    }
+
     func testMissionControlAndAppExposeInWindowManagerAreNative() {
         // Captured on macOS 27.2: both overlays use mc.display. No app or
         // window descendants need to be read, including on multiple displays.
@@ -149,15 +178,17 @@ private final class Element: OverlayElement {
     var elements: [Element]?
     let id: OverlayAttribute
     let roleValue: OverlayAttribute
+    let subroleValue: OverlayAttribute
     let clock: Clock?
     var calls = 0
     var childrenCalls = 0
 
     init(children: [Element]? = [], identifier: OverlayAttribute = .absent,
-         role: OverlayAttribute = .absent, clock: Clock? = nil) {
+         role: OverlayAttribute = .absent, subrole: OverlayAttribute = .absent, clock: Clock? = nil) {
         elements = children
         id = identifier
         roleValue = role
+        subroleValue = subrole
         self.clock = clock
     }
 
@@ -173,6 +204,7 @@ private final class Element: OverlayElement {
     }
     func identifier(timeout: TimeInterval) -> OverlayAttribute { called(timeout); return id }
     func role(timeout: TimeInterval) -> OverlayAttribute { called(timeout); return roleValue }
+    func subrole(timeout: TimeInterval) -> OverlayAttribute { called(timeout); return subroleValue }
 }
 
 private final class Preparation: @unchecked Sendable {

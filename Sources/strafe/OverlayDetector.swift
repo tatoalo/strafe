@@ -22,6 +22,7 @@ protocol OverlayElement: AnyObject {
     func children(limit: Int, timeout: TimeInterval) -> [any OverlayElement]?
     func identifier(timeout: TimeInterval) -> OverlayAttribute
     func role(timeout: TimeInterval) -> OverlayAttribute
+    func subrole(timeout: TimeInterval) -> OverlayAttribute
 }
 
 struct OverlayConnection: @unchecked Sendable {
@@ -32,6 +33,33 @@ struct OverlayConnection: @unchecked Sendable {
 enum OverlaySnapshot {
     static let budget: TimeInterval = 0.005
     static let childLimit = 16
+
+    /// A positive, nonlocalized identity is required before taking a keyboard
+    /// shortcut from the app switcher. Ordinary Dock lists have no subrole.
+    static func appSwitcher(
+        _ connections: [OverlayConnection],
+        budget: TimeInterval = budget,
+        now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    ) -> OverlayState {
+        guard let dock = connections.first(where: { $0.host == .dock }) else { return .unknown }
+        let deadline = now() + budget
+        func remaining() -> TimeInterval { max(0, deadline - now()) }
+        guard remaining() > 0,
+              let children = dock.root.children(limit: childLimit, timeout: remaining()),
+              !children.isEmpty, children.count <= childLimit,
+              remaining() > 0 else { return .unknown }
+        for child in children {
+            guard remaining() > 0 else { return .unknown }
+            let subrole = child.subrole(timeout: remaining())
+            guard remaining() > 0 else { return .unknown }
+            if subrole == .value("AXProcessSwitcherList") {
+                let role = child.role(timeout: remaining())
+                return remaining() > 0 && role == .value("AXList") ? .active : .unknown
+            }
+            if subrole == .unavailable { return .unknown }
+        }
+        return remaining() > 0 ? .inactive : .unknown
+    }
 
     /// One deadline for the whole snapshot, not a fresh timeout per element.
     /// A late successful reply still cannot authorize interception. AX timeouts
@@ -118,6 +146,10 @@ private final class AXOverlayElement: OverlayElement {
         attribute(kAXRoleAttribute as CFString, timeout: timeout)
     }
 
+    func subrole(timeout: TimeInterval) -> OverlayAttribute {
+        attribute(kAXSubroleAttribute as CFString, timeout: timeout)
+    }
+
     private func attribute(_ name: CFString, timeout: TimeInterval) -> OverlayAttribute {
         guard setTimeout(timeout) else { return .unavailable }
         var value: CFTypeRef?
@@ -132,7 +164,8 @@ private final class AXOverlayElement: OverlayElement {
 }
 
 /// Caches *connections*, never overlay state. Preparation happens off the tap;
-/// fresh bounded snapshots happen only at real horizontal gesture beginnings.
+/// fresh bounded snapshots happen only at horizontal gesture beginnings or
+/// candidate Control–Command–Arrow shortcuts.
 /// There is no timer or AX notification subscription. macOS 27.2 moves the
 /// overlays to WindowManager and does not send the old Dock Exposé notifications.
 final class OverlayDetector: @unchecked Sendable {
@@ -152,17 +185,16 @@ final class OverlayDetector: @unchecked Sendable {
     init(
         modern: Bool = strafe_uses_iohid_payload(),
         observeLifecycle: Bool = true,
-        prepare: @escaping @Sendable () -> [OverlayConnection]? = OverlayDetector.prepareConnections
+        prepare: (@Sendable () -> [OverlayConnection]?)? = nil
     ) {
         self.modern = modern
         self.observeLifecycle = observeLifecycle
-        self.prepare = prepare
+        self.prepare = prepare ?? { OverlayDetector.prepareConnections(modern: modern) }
     }
 
     /// Lifecycle methods run on the tap's main thread. The lock protects only
     /// publication against background preparation, never a remote AX request.
     func start() {
-        guard modern else { return }
         lock.lock()
         guard !running else { lock.unlock(); return }
         running = true
@@ -227,12 +259,20 @@ final class OverlayDetector: @unchecked Sendable {
 
     func state() -> OverlayState {
         guard modern else { return strafe_is_expose_active() ? .active : .inactive }
+        return query(kind: "overlay", read: { OverlaySnapshot.read($0) })
+    }
+
+    func appSwitcherState() -> OverlayState {
+        query(kind: "app-switcher", read: { OverlaySnapshot.appSwitcher($0) })
+    }
+
+    private func query(kind: String, read: ([OverlayConnection]) -> OverlayState) -> OverlayState {
         let start = ProcessInfo.processInfo.systemUptime
         lock.lock()
         let snapshot = running ? connections : nil
         let token = generation
         lock.unlock()
-        var state = snapshot.map { OverlaySnapshot.read($0) } ?? .unknown
+        var state = snapshot.map(read) ?? .unknown
         lock.lock()
         if !running || generation != token { state = .unknown }
         lock.unlock()
@@ -246,17 +286,18 @@ final class OverlayDetector: @unchecked Sendable {
             let elapsed = (ProcessInfo.processInfo.systemUptime - start) * 1000
             let reportedState = state
             queue.async {
-                FileHandle.standardError.write(Data("[OverlayDetector] state=\(reportedState.rawValue) elapsed_ms=\(elapsed)\n".utf8))
+                FileHandle.standardError.write(Data("[OverlayDetector] kind=\(kind) state=\(reportedState.rawValue) elapsed_ms=\(elapsed)\n".utf8))
             }
         }
         return state
     }
 
-    private static func prepareConnections() -> [OverlayConnection]? {
+    private static func prepareConnections(modern: Bool) -> [OverlayConnection]? {
         guard AXIsProcessTrusted() else { return nil }
         var result: [OverlayConnection] = []
         // WindowManager first: a confirmed overlay needs no Dock round-trip.
-        for host in [OverlayHost.windowManager, .dock] {
+        let hosts: [OverlayHost] = modern ? [.windowManager, .dock] : [.dock]
+        for host in hosts {
             guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: host.rawValue).first else {
                 return nil
             }
@@ -272,7 +313,7 @@ final class OverlayDetector: @unchecked Sendable {
     /// Headless, read-only CLI diagnostic. Cold preparation may block here;
     /// unlike the resident event tap, the CLI has no input stream to hold up.
     static func diagnosticSnapshot() -> (state: OverlayState, milliseconds: Double) {
-        let connections = strafe_uses_iohid_payload() ? prepareConnections() : nil
+        let connections = strafe_uses_iohid_payload() ? prepareConnections(modern: true) : nil
         let start = ProcessInfo.processInfo.systemUptime
         let state: OverlayState
         if strafe_uses_iohid_payload() {

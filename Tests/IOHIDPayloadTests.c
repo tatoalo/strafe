@@ -151,7 +151,7 @@ int main(void) {
     assert(!strafe_event_moves_right(-1));
     assert(strafe_event_moves_right(1));
     assert(!strafe_event_moves_right(0));
-    assert(strafe_tap_event_mask() == ((1ULL << 29) | (1ULL << 30)));
+    assert(strafe_tap_event_mask() == ((1ULL << 29) | (1ULL << 30) | (1ULL << kCGEventFlagsChanged)));
     check_instant_switch(StrafeDirectionRight);
     check_instant_switch(StrafeDirectionLeft);
     check_overlay_detection();

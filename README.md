@@ -18,7 +18,7 @@ Requires Apple Silicon and macOS 15 or newer. Releases are Developer ID signed, 
 ## Use
 
 - **Control–Left / Control–Right:** instantly switch to the adjacent Space.
-- **BetterMouse:** bind horizontal mouse gestures to Control–Left/Right. Synthetic three-finger swipe actions are not intercepted.
+- **BetterMouse:** bind horizontal mouse gestures to Control–Left/Right. While Cmd–Tab is open, Strafe also handles the Control–Command–Arrow shortcuts produced by swiping with Command held. That chord keeps its normal behavior outside the app switcher. Synthetic three-finger swipe actions are not intercepted.
 - **Trackpad:** native horizontal Space swipes are accelerated when Accessibility is granted and interception is enabled.
 - **System overlays:** Mission Control and App Exposé keep native gestures. On macOS 27+, Strafe checks the overlay's Accessibility identity once per swipe, so revealing the Dock or holding Cmd–Tab does not disable acceleration. Unavailable or timed-out checks leave that gesture native. There is no background polling.
 - **Menu bar:** toggle gesture interception or hotkeys independently, choose Instant/Quick/Smooth transitions, and hide/show the menu icon.
@@ -59,6 +59,6 @@ It never merges or pushes code. Closing a report does not mark changes as incorp
 
 ## Security and attribution
 
-Gesture interception still excludes keystrokes, and the app has no analytics. Unlike upstream, this fork includes Sparkle, contacts GitHub for updates, and publishes compiled binaries. Read [SECURITY.md](SECURITY.md) for the precise boundaries.
+The keyboard tap is enabled only while Command is held and acts only on Control–Command–Arrow inside the app switcher. The app has no analytics. Unlike upstream, this fork includes Sparkle, contacts GitHub for updates, and publishes compiled binaries. Read [SECURITY.md](SECURITY.md) for the precise boundaries.
 
 MIT, with upstream attribution and third-party notices in [LICENSE](LICENSE).

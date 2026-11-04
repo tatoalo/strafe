@@ -97,8 +97,8 @@ int32_t strafe_field_swipe_velocity_x(void);  // 129 -> velocityX (double)
 int32_t strafe_field_swipe_velocity_y(void);  // 130 -> velocityY (double)
 int32_t strafe_field_gesture_phase(void);     // 132 -> CGSGesturePhase
 
-// Raw event mask the tap must register: the two private gesture types by raw
-// bit shift (1<<29)|(1<<30). Key events are deliberately NOT masked — see the
+// Raw gesture tap mask: private gesture types (1<<29)|(1<<30), plus modifier
+// transitions that gate the separate Command-held shortcut tap — see the
 // KEY-EVENTS-IN-MASK DETERMINATION at the definition in CStrafe.c.
 uint64_t strafe_tap_event_mask(void);
 

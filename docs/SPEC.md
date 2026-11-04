@@ -11,11 +11,11 @@
 >
 > - **The `tccutil reset Accessibility` subprocess call** (§4). strafe never
 >   shells out to `tccutil` or any other process.
-> - **The second event tap** used for hotkey recording (§4). strafe has exactly
->   one event tap and records hotkeys via Carbon, not a tap.
-> - **Key-event masking / key events in the tap mask** (§2.1). strafe's tap masks
->   only the two private gesture types (`1<<29 | 1<<30`); it never masks or
->   inspects `kCGEventKeyDown`/`kCGEventKeyUp`, so it cannot observe keystrokes.
+> - **The hotkey-recording event tap** (§4). strafe has no shortcut recorder.
+>   Its normal Control–Arrow hotkeys use Carbon. Its main gesture tap also
+>   observes modifier transitions to enable a separate keyboard tap only during
+>   Command holds. That tap handles Control–Command–Arrow only inside the app
+>   switcher, after a fresh `AXProcessSwitcherList` check; it reads no key text.
 >
 > For the authoritative statement of what strafe actually does — and grep-able
 > proof of what it does not — see [SECURITY.md](../SECURITY.md).
@@ -348,6 +348,18 @@ Connections are refreshed after host launch/termination, system wake, or a faile
 gesture-time query. There is no polling or reliance on overlay notifications.
 AX timeouts are messaging limits, not hard realtime scheduling guarantees.
 `strafe-tatoalo overlay-status` performs a read-only one-shot diagnostic.
+
+**Mouse shortcuts with Cmd–Tab:** BetterMouse emits Control–Command–Arrow when
+the user swipes its Control–Arrow binding while holding Command. Carbon's plain
+Control–Arrow registration does not match it. `AppSwitcherShortcuts.swift`
+recognizes that chord only after a fresh, bounded Dock root snapshot confirms
+an `AXList` with subrole `AXProcessSwitcherList`. It respects the independent
+space-hotkeys preference; unknown/inactive UI states keep the original key
+events. It claims a press/release pair, ignores repeat downs, and suppresses
+edge attempts rather than passing them into app-switcher navigation. Modifier
+events enable its keyboard tap only during Command holds, so ordinary typing
+does not round-trip through an active keyboard tap. Connection preparation and
+query deadlines are shared with the overlay detector; no timer is added.
 
 The following describes the original ISS/legacy window-layer heuristic:
 While overlays are up, real swipes should pass through. ISS detects them by scanning

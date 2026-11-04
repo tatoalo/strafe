@@ -17,6 +17,7 @@ final class SwipeInterceptor: @unchecked Sendable {
     private let engine: SwitchEngine
     private let overlayState: () -> OverlayState
     private let overlayDetector: OverlayDetector?
+    private let appSwitcherShortcuts: AppSwitcherShortcuts
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
@@ -39,7 +40,9 @@ final class SwipeInterceptor: @unchecked Sendable {
     private var swipePosted = false
     private var gestureDecisionMade = false
 
-    init(engine: SwitchEngine, overlayState: (() -> OverlayState)? = nil) {
+    init(engine: SwitchEngine, overlayState: (() -> OverlayState)? = nil,
+         appSwitcherState: (() -> OverlayState)? = nil,
+         hotkeysEnabled: @escaping () -> Bool = { HotkeyManager.enabled }) {
         self.engine = engine
         if let overlayState {
             self.overlayState = overlayState
@@ -49,6 +52,11 @@ final class SwipeInterceptor: @unchecked Sendable {
             overlayDetector = detector
             self.overlayState = { detector.state() }
         }
+        let detector = overlayDetector
+        appSwitcherShortcuts = AppSwitcherShortcuts(
+            engine: engine, enabled: hotkeysEnabled,
+            switcherState: appSwitcherState ?? { detector?.appSwitcherState() ?? .unknown }
+        )
     }
 
     // MARK: - Lifecycle
@@ -60,10 +68,8 @@ final class SwipeInterceptor: @unchecked Sendable {
             return
         }
 
-        // Gesture (1<<29) | dock-control (1<<30) only, sourced from C so the raw
-        // private type bits are single-sourced with the synthesizer. Key events
-        // are intentionally excluded (they were never acted on and only added
-        // per-keystroke latency) — see the determination comment in CStrafe.c.
+        // Gesture/dock-control plus modifier changes. The separate keyboard
+        // tap is enabled only while Command is held, not for ordinary typing.
         let mask = CGEventMask(strafe_tap_event_mask())
 
         // Trampoline `self` through the tap's userInfo pointer.
@@ -101,6 +107,7 @@ final class SwipeInterceptor: @unchecked Sendable {
     func enable() {
         guard let eventTap else { return }
         overlayDetector?.start()
+        appSwitcherShortcuts.start()
         CGEvent.tapEnable(tap: eventTap, enable: true)
         isRunning = true
     }
@@ -110,6 +117,7 @@ final class SwipeInterceptor: @unchecked Sendable {
         guard let eventTap else { return }
         overlayDetector?.stop()
         resetGesture()
+        appSwitcherShortcuts.stop()
         CGEvent.tapEnable(tap: eventTap, enable: false)
         isRunning = false
     }
@@ -127,6 +135,7 @@ final class SwipeInterceptor: @unchecked Sendable {
         eventTap = nil
         isRunning = false
         resetGesture()
+        appSwitcherShortcuts.stop()
     }
 
     private func resetGesture() {
@@ -155,11 +164,20 @@ final class SwipeInterceptor: @unchecked Sendable {
             // state machine mid-track. Reset before re-enabling so a dropped
             // gesture-end can't leave us stuck suppressing companion events.
             resetGesture()
+            appSwitcherShortcuts.reset()
+            appSwitcherShortcuts.resyncModifiers()
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
             return passthrough
         }
 
-        // Only act when interception is on (SPEC §2.2).
+        // Only modifier transitions reach this tap. They enable the separate
+        // keyboard tap during Command holds, independently of the gesture toggle.
+        if type == .flagsChanged {
+            appSwitcherShortcuts.modifiersChanged(event.flags)
+            return passthrough
+        }
+
+        // Only act when gesture interception is on (SPEC §2.2).
         guard overrideEnabled else { return passthrough }
 
         // Read the private CGSEventType (field 55). We only care about the
