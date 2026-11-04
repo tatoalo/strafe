@@ -22,6 +22,6 @@ Stable releases are signed with Developer ID, notarized by Apple, and stapled. U
 
 Signing and notarization credentials exist only as GitHub Actions secrets and temporary files/keychains in the release job. They are removed in an unconditional cleanup step. Pull-request CI does not receive release secrets. Release jobs run only for the fork's `main` branch or the merge result of a release-labeled PR into `main`. Assets and the appcast are uploaded to a draft and made public together.
 
-The daily upstream checker receives issue-writing permission and the configured analysis-provider credentials. It sends public upstream/fork code diffs and customization documentation to that provider to produce an advisory report. It never sends signing secrets, runs upstream code, modifies working-tree files, pushes commits, merges changes, or cuts releases. AI assessments may be wrong; the report separates them from factual Git/static checks.
+The monthly upstream checker receives issue-writing permission and the configured analysis-provider credentials. It sends public upstream/fork code diffs and customization documentation to that provider to produce an advisory report. It never sends signing secrets, runs upstream code, modifies working-tree files, pushes commits, merges changes, or cuts releases. AI assessments may be wrong; the report separates them from factual Git/static checks.
 
 Report vulnerabilities privately through the repository owner's GitHub contact options; do not include credentials or private data in public issues.

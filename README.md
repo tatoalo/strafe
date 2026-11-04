@@ -52,7 +52,7 @@ Local builds are ad-hoc signed. Published releases are built entirely in GitHub 
 
 ## Upstream monitoring
 
-The **Upstream impact report** workflow checks `rileycx/strafe` daily at **03:17 UTC**, and can be run manually. New upstream changes create an issue in this fork containing the upstream diff, merge conflicts, static checks of fork behavior, and an AI-assisted compatibility assessment. It updates an existing open report instead of creating daily duplicates.
+The **Upstream impact report** workflow checks `rileycx/strafe` on the **first day of each month at 03:17 UTC**, and can be run manually. New upstream changes create an issue in this fork containing the upstream diff, merge conflicts, static checks of fork behavior, and an AI-assisted compatibility assessment. It updates an existing open report instead of creating duplicate reports.
 
 It never merges or pushes code. Closing a report does not mark changes as incorporated; Git ancestry determines that. [Fork customizations](.github/fork-customizations.md) document the behavior to preserve. GitHub can pause scheduled workflows after prolonged repository inactivity; the workflow can be re-enabled in Actions.
 
