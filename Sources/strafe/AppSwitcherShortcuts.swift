@@ -114,7 +114,12 @@ final class AppSwitcherShortcuts: @unchecked Sendable {
     func resyncModifiers() {
         commandHeld = CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
         if !commandHeld { reset() }
-        if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: commandHeld) }
+        // Disabling a tap emits tapDisabledByUserInput. Disabling it again
+        // from that callback would generate another notification indefinitely.
+        // Reconcile only an actual state difference, including timeout recovery.
+        if let eventTap, CGEvent.tapIsEnabled(tap: eventTap) != commandHeld {
+            CGEvent.tapEnable(tap: eventTap, enable: commandHeld)
+        }
     }
 
     func reset() {
