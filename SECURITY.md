@@ -4,11 +4,17 @@ This is the tatoalo fork of Strafe. It retains upstream's gesture engine but add
 
 ## Input handling
 
-The active event tap in `Sources/strafe/SwipeInterceptor.swift` subscribes only to gesture and Dock-control events. The event mask is defined by `strafe_tap_event_mask()` in `Sources/CStrafe/CStrafe.c`. Keyboard events are excluded. Control–Left/Right uses Carbon's specific global hotkey registration in `HotkeyManager.swift`, rather than a general keyboard listener.
+The main event tap in `Sources/strafe/SwipeInterceptor.swift` subscribes to gesture, Dock-control, and modifier-change events. Its mask is defined by `strafe_tap_event_mask()` in `Sources/CStrafe/CStrafe.c`. Control–Left/Right uses Carbon's specific global hotkey registration in `HotkeyManager.swift`.
+
+Modifier changes enable a separate keyboard tap only while Command is held; it is disabled during ordinary typing. This tap examines virtual key codes and modifier bits, never key text. It passes everything through except Control–Command–Left/Right when space-switch hotkeys are enabled and a fresh Accessibility read positively identifies Dock's `AXProcessSwitcherList`. This handles mouse utilities that retain a held Command modifier on their Control–Arrow shortcuts. Outside the app switcher, or if the check fails or times out, those shortcuts retain their normal behavior. There is no modifier or keyboard polling.
+
+After claiming a synthetic shortcut, Strafe can preserve Command on that utility's immediate Control-release event and the system's following modifier-reconciliation event. This requires the Command key to remain physically down and expires after 250 ms, checked only when an event arrives. Physical Command-release events and unrelated processes/keys are not changed. This prevents mouse-utility cleanup from prematurely committing the selected Cmd–Tab app.
 
 The engine reads the current display/Space topology, cursor location, and limited window metadata to identify the target display and Mission Control overlays. It synthesizes Dock-swipe events to accelerate transitions. These input and window details are used locally and are not recorded or transmitted. Private macOS APIs mean compatibility can change with macOS updates.
 
 Accessibility is needed to intercept gestures. It can be revoked in System Settings → Privacy & Security → Accessibility. The fork's bundle identifier is `com.tatoalo.strafe`.
+
+System UI detection reads only root child counts, machine identifiers, roles, and subroles using this same grant. It does not inspect app/window titles or descendant content. Dock connections (and WindowManager on macOS 27+) are warmed in the background at startup, after relevant lifecycle events, or after a failed input-time query. State is queried afresh only at a horizontal swipe's beginning or a candidate app-switcher shortcut, with a shared 5 ms messaging budget and at most 16 root children per host. There is no polling timer. Unknown or late results preserve native input. Earlier macOS versions retain the legacy window-layer check for Mission Control. Setting `STRAFE_OVERLAY_DIAGNOSTICS=1` logs at most 64 UI-state decisions with query durations and 16 modifier-cleanup repairs locally to stderr; it is off by default and records no input content.
 
 ## Networking, files, and updates
 

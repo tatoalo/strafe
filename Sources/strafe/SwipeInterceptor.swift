@@ -15,7 +15,9 @@ import CStrafe
 /// makes the unchecked conformance sound.
 final class SwipeInterceptor: @unchecked Sendable {
     private let engine: SwitchEngine
-    private let isExposeActive: () -> Bool
+    private let overlayState: () -> OverlayState
+    private let overlayDetector: OverlayDetector?
+    private let appSwitcherShortcuts: AppSwitcherShortcuts
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
@@ -24,16 +26,37 @@ final class SwipeInterceptor: @unchecked Sendable {
 
     /// Whether interception is active. When false the callback passes every
     /// event through untouched (SPEC §2.2: "only acts when swipeOverrideEnabled").
-    var overrideEnabled: Bool = true
+    var overrideEnabled: Bool = true {
+        didSet {
+            // Events received while disabled bypass the state machine, so an
+            // old gesture may never deliver its terminal event to us.
+            if overrideEnabled != oldValue { resetGesture() }
+        }
+    }
 
     // MARK: - State machine (SPEC §2.3). Main-run-loop confined.
     private var swipeTracking = false
     private var swipeFired = false
     private var swipePosted = false
+    private var gestureDecisionMade = false
 
-    init(engine: SwitchEngine, isExposeActive: @escaping () -> Bool = { strafe_is_expose_active() }) {
+    init(engine: SwitchEngine, overlayState: (() -> OverlayState)? = nil,
+         appSwitcherState: (() -> OverlayState)? = nil,
+         hotkeysEnabled: @escaping () -> Bool = { HotkeyManager.enabled }) {
         self.engine = engine
-        self.isExposeActive = isExposeActive
+        if let overlayState {
+            self.overlayState = overlayState
+            overlayDetector = nil
+        } else {
+            let detector = OverlayDetector()
+            overlayDetector = detector
+            self.overlayState = { detector.state() }
+        }
+        let detector = overlayDetector
+        appSwitcherShortcuts = AppSwitcherShortcuts(
+            engine: engine, enabled: hotkeysEnabled,
+            switcherState: appSwitcherState ?? { detector?.appSwitcherState() ?? .unknown }
+        )
     }
 
     // MARK: - Lifecycle
@@ -45,10 +68,8 @@ final class SwipeInterceptor: @unchecked Sendable {
             return
         }
 
-        // Gesture (1<<29) | dock-control (1<<30) only, sourced from C so the raw
-        // private type bits are single-sourced with the synthesizer. Key events
-        // are intentionally excluded (they were never acted on and only added
-        // per-keystroke latency) — see the determination comment in CStrafe.c.
+        // Gesture/dock-control plus modifier changes. The separate keyboard
+        // tap is enabled only while Command is held, not for ordinary typing.
         let mask = CGEventMask(strafe_tap_event_mask())
 
         // Trampoline `self` through the tap's userInfo pointer.
@@ -85,6 +106,8 @@ final class SwipeInterceptor: @unchecked Sendable {
     /// Enable the tap if it exists.
     func enable() {
         guard let eventTap else { return }
+        overlayDetector?.start()
+        appSwitcherShortcuts.start()
         CGEvent.tapEnable(tap: eventTap, enable: true)
         isRunning = true
     }
@@ -92,12 +115,16 @@ final class SwipeInterceptor: @unchecked Sendable {
     /// Disable the tap without tearing it down (can be re-enabled cheaply).
     func disable() {
         guard let eventTap else { return }
+        overlayDetector?.stop()
+        resetGesture()
+        appSwitcherShortcuts.stop()
         CGEvent.tapEnable(tap: eventTap, enable: false)
         isRunning = false
     }
 
     /// Fully remove the tap from the main run loop and release it.
     func teardown() {
+        overlayDetector?.stop()
         if let runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         }
@@ -107,9 +134,15 @@ final class SwipeInterceptor: @unchecked Sendable {
         runLoopSource = nil
         eventTap = nil
         isRunning = false
+        resetGesture()
+        appSwitcherShortcuts.stop()
+    }
+
+    private func resetGesture() {
         swipeTracking = false
         swipeFired = false
         swipePosted = false
+        gestureDecisionMade = false
     }
 
     // MARK: - Callback (runs on the main run loop)
@@ -130,14 +163,21 @@ final class SwipeInterceptor: @unchecked Sendable {
             // A disable can swallow a gesture's `ended`/`cancelled`, leaving the
             // state machine mid-track. Reset before re-enabling so a dropped
             // gesture-end can't leave us stuck suppressing companion events.
-            swipeTracking = false
-            swipeFired = false
-            swipePosted = false
+            resetGesture()
+            appSwitcherShortcuts.reset()
+            appSwitcherShortcuts.resyncModifiers()
             if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
             return passthrough
         }
 
-        // Only act when interception is on (SPEC §2.2).
+        // Only modifier transitions reach this tap. They enable the separate
+        // keyboard tap during Command holds, independently of the gesture toggle.
+        if type == .flagsChanged {
+            appSwitcherShortcuts.handleModifier(event)
+            return passthrough
+        }
+
+        // Only act when gesture interception is on (SPEC §2.2).
         guard overrideEnabled else { return passthrough }
 
         // Read the private CGSEventType (field 55). We only care about the
@@ -175,8 +215,12 @@ final class SwipeInterceptor: @unchecked Sendable {
         let phase = strafe_event_gesture_phase(event)
 
         if phase == strafe_gesture_phase_began() {
-            // Let real gestures through while an overlay (Exposé) is up (SPEC §2.5).
-            if isExposeActive() { return passthrough }
+            // A single bounded snapshot decides ownership of the entire
+            // gesture. Unknown/timeout stays native, including cancellation.
+            // Duplicate beginnings cannot change that decision mid-gesture.
+            if gestureDecisionMade { return swipeTracking ? nil : passthrough }
+            gestureDecisionMade = true
+            guard overlayState() == .inactive else { return passthrough }
             swipeTracking = true
             swipeFired = false
             swipePosted = false
@@ -195,6 +239,7 @@ final class SwipeInterceptor: @unchecked Sendable {
             return nil  // SUPPRESS
 
         } else if phase == strafe_gesture_phase_ended() {
+            gestureDecisionMade = false
             guard swipeTracking else { return passthrough }
             if !swipeFired {
                 // Fallback: derive direction from the end velocity's sign.
@@ -227,10 +272,9 @@ final class SwipeInterceptor: @unchecked Sendable {
             return nil  // SUPPRESS
 
         } else if phase == strafe_gesture_phase_cancelled() {
-            swipeTracking = false
-            swipeFired = false
-            swipePosted = false
-            return nil
+            let owned = swipeTracking
+            resetGesture()
+            return owned ? nil : passthrough
 
         } else {
             // Any other phase (mayBegin/none): suppress only while tracking.
