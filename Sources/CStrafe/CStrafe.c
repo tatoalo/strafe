@@ -335,7 +335,8 @@ uint64_t strafe_tap_event_mask(void) {
 }
 
 // --- Overlay / Exposé detection (SPEC §2.5) -------------------------------
-// Heuristic: count Dock-owned windows at layers 18 and 20.
+// Legacy (pre-macOS 27) heuristic. Modern overlays are identified by a bounded
+// Accessibility snapshot in OverlayDetector.swift, never by layer 20 alone.
 bool strafe_is_expose_active(void) {
     CFArrayRef windows = CGWindowListCopyWindowInfo(
         kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID);
@@ -365,10 +366,5 @@ bool strafe_is_expose_active(void) {
     // Mission Control: layer18Count > 0 && layer20Count > layer18Count.
     if (layer18Count > 0 && layer20Count > 0 && layer20Count <= layer18Count) { return true; }
     if (layer18Count > 0 && layer20Count > layer18Count) { return true; }
-    // macOS 27 Mission Control can show a lone Dock window at layer 20.
-    // Earlier systems retain the existing layer-18 requirement.
-    if (__builtin_available(macOS 27.0, *)) {
-        if (layer20Count > 0) { return true; }
-    }
     return false;
 }

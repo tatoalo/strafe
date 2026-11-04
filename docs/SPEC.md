@@ -333,6 +333,23 @@ elastically drag/rebound the Space. Two mechanisms:
   ```
 
 ### 2.5 Exposé / Mission Control passthrough
+
+**Current implementation (November 2026):** the window-layer heuristic below is
+retained only before macOS 27. `OverlayDetector.swift` prepares Dock and
+WindowManager Accessibility connections off the event-tap thread. At each real
+horizontal `began`, a fresh snapshot reads at most 16 root children per host,
+sharing one 5 ms messaging deadline across all calls. `mc.display` under
+WindowManager (observed for both Mission Control and App Exposé on macOS 27.2),
+or `mc` / `appexpose` under Dock, means native passthrough. Normal Dock and Cmd–Tab
+have anonymous `AXList` children, not overlays. Unknown layouts, incomplete
+snapshots, expired deadlines, and unavailable connections stay native for the
+whole gesture, including cancellation. The decision is not re-read mid-gesture.
+Connections are refreshed after host launch/termination, system wake, or a failed
+gesture-time query. There is no polling or reliance on overlay notifications.
+AX timeouts are messaging limits, not hard realtime scheduling guarantees.
+`strafe-tatoalo overlay-status` performs a read-only one-shot diagnostic.
+
+The following describes the original ISS/legacy window-layer heuristic:
 While overlays are up, real swipes should pass through. ISS detects them by scanning
 `CGWindowListCopyWindowInfo` for Dock-owned windows at **layer 18** and **layer 20**:
 - App Exposé: `layer18Count > 0 && layer20Count > 0 && layer20Count <= layer18Count`.
@@ -487,7 +504,7 @@ core mechanism but shows the public C API surface:
 9. **Unsigned-app TCC churn.** Ad-hoc signing means TCC identity changes per build;
    ISS proactively `tccutil reset Accessibility` before prompting. Expect to re-grant
    Accessibility after each rebuild in dev.
-10. **Overlay detection is heuristic** (Dock window layers 18/20 counts) and marked
+10. **Legacy overlay detection is heuristic** (Dock window layers 18/20 counts) and marked
     "may not work in all cases" — used only to pass gestures through in Exposé and to
     hide the OSD in Mission Control.
 

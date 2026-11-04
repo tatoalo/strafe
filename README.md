@@ -20,6 +20,7 @@ Requires Apple Silicon and macOS 15 or newer. Releases are Developer ID signed, 
 - **Control–Left / Control–Right:** instantly switch to the adjacent Space.
 - **BetterMouse:** bind horizontal mouse gestures to Control–Left/Right. Synthetic three-finger swipe actions are not intercepted.
 - **Trackpad:** native horizontal Space swipes are accelerated when Accessibility is granted and interception is enabled.
+- **System overlays:** Mission Control and App Exposé keep native gestures. On macOS 27+, Strafe checks the overlay's Accessibility identity once per swipe, so revealing the Dock or holding Cmd–Tab does not disable acceleration. Unavailable or timed-out checks leave that gesture native. There is no background polling.
 - **Menu bar:** toggle gesture interception or hotkeys independently, choose Instant/Quick/Smooth transitions, and hide/show the menu icon.
 - **Launch at startup:** opt in to opening strafe-tatoalo automatically when you log in. The menu reflects macOS Login Items and links to System Settings if approval is needed.
 - **Check for Updates…:** view release notes, install a signed update, and relaunch.
@@ -52,7 +53,7 @@ Local builds are ad-hoc signed. Published releases are built entirely in GitHub 
 
 ## Upstream monitoring
 
-The **Upstream impact report** workflow checks `rileycx/strafe` daily at **03:17 UTC**, and can be run manually. New upstream changes create an issue in this fork containing the upstream diff, merge conflicts, static checks of fork behavior, and an AI-assisted compatibility assessment. It updates an existing open report instead of creating daily duplicates.
+The **Upstream impact report** workflow checks `rileycx/strafe` on the **first day of each month at 03:17 UTC**, and can be run manually. New upstream changes create an issue in this fork containing the upstream diff, merge conflicts, static checks of fork behavior, and an AI-assisted compatibility assessment. It updates an existing open report instead of creating duplicate reports.
 
 It never merges or pushes code. Closing a report does not mark changes as incorporated; Git ancestry determines that. [Fork customizations](.github/fork-customizations.md) document the behavior to preserve. GitHub can pause scheduled workflows after prolonged repository inactivity; the workflow can be re-enabled in Actions.
 

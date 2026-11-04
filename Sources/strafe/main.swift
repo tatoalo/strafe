@@ -55,6 +55,12 @@ func runCLI(_ args: [String], engine: GestureSwitchEngine) -> Int32 {
             return 1
         }
 
+    case "overlay-status":
+        let snapshot = OverlayDetector.diagnosticSnapshot()
+        print("overlay: \(snapshot.state.rawValue)")
+        print(String(format: "query: %.3f ms (5 ms budget; excludes connection preparation)", snapshot.milliseconds))
+        return snapshot.state == .unknown ? 1 : 0
+
     case "status":
         // No live tap in CLI mode, so report tap as not running. CGS symbol
         // resolution is the capability check per SPEC §1.1 / §6.
@@ -112,6 +118,7 @@ func runCLI(_ args: [String], engine: GestureSwitchEngine) -> Int32 {
           strafe-tatoalo                      start the menu-bar app
           strafe-tatoalo switch left|right    switch space once and exit
           strafe-tatoalo status               print accessibility / tap status
+          strafe-tatoalo overlay-status       read overlay state once; never posts input
           strafe-tatoalo speed [preset]       show or set the swipe transition speed
           strafe-tatoalo hotkeys [on|off]     show or set the ctrl+arrow hotkeys
 

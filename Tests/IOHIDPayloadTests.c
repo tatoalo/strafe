@@ -45,9 +45,8 @@ static void check_overlay_detection(void) {
     check_overlay(CFSTR("Finder"), (int[]){18, 20}, 2, false);
     check_overlay(CFSTR("Finder"), (int[]){20}, 1, false);
     check_overlay(CFSTR("Dock"), (int[]){0, 19, 21}, 3, false);
-    bool modern = false;
-    if (__builtin_available(macOS 27.0, *)) { modern = true; }
-    check_overlay(CFSTR("Dock"), (int[]){20}, 1, modern);
+    // A visible Dock/Cmd-Tab window alone is not evidence of an overlay.
+    check_overlay(CFSTR("Dock"), (int[]){20}, 1, false);
 }
 
 // Override the framework entry point in this test executable. Exercise the

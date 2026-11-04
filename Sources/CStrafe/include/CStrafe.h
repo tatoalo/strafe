@@ -103,7 +103,8 @@ int32_t strafe_field_gesture_phase(void);     // 132 -> CGSGesturePhase
 uint64_t strafe_tap_event_mask(void);
 
 // --- Overlay / Exposé passthrough (SPEC §2.5) -----------------------------
-// True when App Exposé or Mission Control is up (Dock windows at layers 18/20).
+// Pre-macOS 27 heuristic only (Dock windows at both layers 18 and 20).
+// Modern callers use OverlayDetector's bounded Accessibility snapshot.
 bool strafe_is_expose_active(void);
 
 #ifdef __cplusplus

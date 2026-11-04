@@ -10,6 +10,8 @@ The engine reads the current display/Space topology, cursor location, and limite
 
 Accessibility is needed to intercept gestures. It can be revoked in System Settings → Privacy & Security → Accessibility. The fork's bundle identifier is `com.tatoalo.strafe`.
 
+On macOS 27+, overlay detection reads only root child counts, machine identifiers, and roles from Dock and WindowManager using this same grant. It does not inspect app/window titles or descendant content. Process connections are warmed in the background at startup, after relevant lifecycle events, or after a failed gesture-time query. Overlay state is queried afresh only at a horizontal swipe's beginning, with a shared 5 ms messaging budget and at most 16 root children per host. There is no polling timer. Unknown or late results leave the entire gesture native. Earlier macOS versions retain the legacy window-layer check. Setting `STRAFE_OVERLAY_DIAGNOSTICS=1` logs at most 64 gesture decisions and their query durations locally to stderr; it is off by default and records no input content.
+
 ## Networking, files, and updates
 
 Sparkle is the app's third-party dependency, pinned in `Package.swift` and `Package.resolved`. It reads the HTTPS appcast at `https://github.com/tatoalo/strafe/releases/latest/download/appcast.xml`, fetches release notes/update assets, verifies update signatures, and installs updates using its bundled helpers. Update downloads come from GitHub Releases and may follow GitHub's CDN redirects. These requests expose ordinary connection metadata to GitHub. Sparkle system profiling is disabled; there is no app analytics or input telemetry.
@@ -22,6 +24,6 @@ Stable releases are signed with Developer ID, notarized by Apple, and stapled. U
 
 Signing and notarization credentials exist only as GitHub Actions secrets and temporary files/keychains in the release job. They are removed in an unconditional cleanup step. Pull-request CI does not receive release secrets. Release jobs run only for the fork's `main` branch or the merge result of a release-labeled PR into `main`. Assets and the appcast are uploaded to a draft and made public together.
 
-The daily upstream checker receives issue-writing permission and the configured analysis-provider credentials. It sends public upstream/fork code diffs and customization documentation to that provider to produce an advisory report. It never sends signing secrets, runs upstream code, modifies working-tree files, pushes commits, merges changes, or cuts releases. AI assessments may be wrong; the report separates them from factual Git/static checks.
+The monthly upstream checker receives issue-writing permission and the configured analysis-provider credentials. It sends public upstream/fork code diffs and customization documentation to that provider to produce an advisory report. It never sends signing secrets, runs upstream code, modifies working-tree files, pushes commits, merges changes, or cuts releases. AI assessments may be wrong; the report separates them from factual Git/static checks.
 
 Report vulnerabilities privately through the repository owner's GitHub contact options; do not include credentials or private data in public issues.
