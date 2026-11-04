@@ -173,7 +173,7 @@ final class SwipeInterceptor: @unchecked Sendable {
         // Only modifier transitions reach this tap. They enable the separate
         // keyboard tap during Command holds, independently of the gesture toggle.
         if type == .flagsChanged {
-            appSwitcherShortcuts.modifiersChanged(event.flags)
+            appSwitcherShortcuts.handleModifier(event)
             return passthrough
         }
 

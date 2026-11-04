@@ -10,17 +10,29 @@ final class AppSwitcherShortcuts: @unchecked Sendable {
     private let engine: SwitchEngine
     private let enabled: () -> Bool
     private let switcherState: () -> OverlayState
+    private let commandIsPhysicallyHeld: () -> Bool
+    private let now: () -> TimeInterval
     private var leftOwner: Int64?
     private var rightOwner: Int64?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var commandHeld = false
+    private var cleanupSource: Int64?
+    private var cleanupDeadline: TimeInterval = 0
+    private let diagnostics = ProcessInfo.processInfo.environment["STRAFE_OVERLAY_DIAGNOSTICS"] == "1"
+    private var diagnosticBudget = 16
 
     init(engine: SwitchEngine, enabled: @escaping () -> Bool,
-         switcherState: @escaping () -> OverlayState) {
+         switcherState: @escaping () -> OverlayState,
+         commandIsPhysicallyHeld: @escaping () -> Bool = {
+             CGEventSource.keyState(.hidSystemState, key: 55)
+                 || CGEventSource.keyState(.hidSystemState, key: 54)
+         }, now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         self.engine = engine
         self.enabled = enabled
         self.switcherState = switcherState
+        self.commandIsPhysicallyHeld = commandIsPhysicallyHeld
+        self.now = now
     }
 
     /// Prepare once, but keep the keyboard tap disabled outside Command holds.
@@ -72,6 +84,33 @@ final class AppSwitcherShortcuts: @unchecked Sendable {
         if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: held) }
     }
 
+    func handleModifier(_ event: CGEvent) {
+        if let source = cleanupSource {
+            if now() > cleanupDeadline {
+                cleanupSource = nil
+            } else if !event.flags.contains(.maskCommand) && !event.flags.contains(.maskControl) {
+                let pid = event.getIntegerValueField(.eventSourceUnixProcessID)
+                let key = event.getIntegerValueField(.keyboardEventKeycode)
+                // Captured BetterMouse sequence: arrow down/up, then a Control
+                // release with *all* modifiers cleared; WindowServer follows
+                // with a key-0 reconciliation event. Neither is a physical
+                // Command release. Repair only this brief post-shortcut tail.
+                let utilityCleanup = pid == source && (key == 59 || key == 62)
+                let reconciliation = pid == 0 && key == 0
+                if (utilityCleanup || reconciliation) && commandIsPhysicallyHeld() {
+                    event.flags.insert(.maskCommand)
+                    if diagnostics && diagnosticBudget > 0 {
+                        diagnosticBudget -= 1
+                        DispatchQueue.global(qos: .utility).async {
+                            FileHandle.standardError.write(Data("[AppSwitcherShortcuts] preserved held Command during shortcut cleanup\n".utf8))
+                        }
+                    }
+                }
+            }
+        }
+        modifiersChanged(event.flags)
+    }
+
     func resyncModifiers() {
         commandHeld = CGEventSource.flagsState(.combinedSessionState).contains(.maskCommand)
         if !commandHeld { reset() }
@@ -81,6 +120,8 @@ final class AppSwitcherShortcuts: @unchecked Sendable {
     func reset() {
         leftOwner = nil
         rightOwner = nil
+        cleanupSource = nil
+        cleanupDeadline = 0
     }
 
     /// True means this event belongs to a shortcut we have claimed.
@@ -101,12 +142,19 @@ final class AppSwitcherShortcuts: @unchecked Sendable {
         if owner == pid { return true }
         guard owner == nil,
               event.getIntegerValueField(.keyboardEventAutorepeat) == 0 else { return false }
+        // A new shortcut from this utility ends the preceding cleanup scope,
+        // including when the new shortcut is outside the app switcher.
+        if cleanupSource == pid { cleanupSource = nil }
         let relevant: CGEventFlags = [.maskControl, .maskCommand, .maskShift, .maskAlternate]
         let chord: CGEventFlags = [.maskControl, .maskCommand]
         guard event.flags.intersection(relevant) == chord,
               enabled(), switcherState() == .active else { return false }
 
         if key == 123 { leftOwner = pid } else { rightOwner = pid }
+        // A timestamp comparison expires the repair scope; no timer wakes the
+        // process. Physical keyboard shortcuts never create a repair scope.
+        cleanupSource = pid == 0 ? nil : pid
+        cleanupDeadline = now() + 0.25
         do {
             try engine.switchSpace(key == 123 ? .left : .right)
         } catch SwitchEngineError.atEdge {

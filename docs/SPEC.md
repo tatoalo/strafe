@@ -361,6 +361,16 @@ events enable its keyboard tap only during Command holds, so ordinary typing
 does not round-trip through an active keyboard tap. Connection preparation and
 query deadlines are shared with the overlay detector; no timer is added.
 
+The captured BetterMouse sequence also clears all modifier bits in its final
+Control-release event even while physical Command remains down, followed by a
+WindowServer key-0 reconciliation event. That can commit the selected app and
+start a native app/Space transition. After claiming a synthetic shortcut, the
+handler preserves Command only on that source's Control-release cleanup and
+the immediate system reconciliation, while hardware Command is still down.
+This scope expires after 250 ms via an event-time timestamp comparison; no
+timer is scheduled. A physical Command release, reset, or new unclaimed
+shortcut clears the scope. Other event flags and sources remain unchanged.
+
 The following describes the original ISS/legacy window-layer heuristic:
 While overlays are up, real swipes should pass through. ISS detects them by scanning
 `CGWindowListCopyWindowInfo` for Dock-owned windows at **layer 18** and **layer 20**:
