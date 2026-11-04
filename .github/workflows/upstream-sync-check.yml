@@ -1,7 +1,7 @@
 name: Upstream impact report
 on:
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '17 3 1 * *'
   workflow_dispatch:
     inputs:
       force:
